@@ -116,6 +116,11 @@ function getServiceWrap () {
 }
 
 function add (name, options, cb) {
+	if (! cb) {
+		cb = arguments[1];
+		options = {};
+	}
+
 	var nodePath = (options && options.nodePath)
 			? options.nodePath
 			: process.execPath;
@@ -328,7 +333,7 @@ function stop (rcode) {
 	if (os.platform() == "win32") {
 		getServiceWrap ().stop (rcode);
 	}
-	process.exit (rcode);
+	process.exit (rcode || 0);
 }
 
 exports.add = add;

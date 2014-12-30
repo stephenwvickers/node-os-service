@@ -2,7 +2,7 @@
 # os-service - [homepage][homepage]
 
 This module implements the ability to run a [Node.js][nodejs] based JavaScript
-program as a native Windows service or a Linux daemon.
+program as a native Windows or Linux service.
 
 This module is installed using [node package manager (npm)][npm]:
 
@@ -19,9 +19,9 @@ It is loaded using the `require()` function:
 
 A program can then be added, removed and run as a service:
 
-    service.add ("MyService");
+    service.add ("my-service");
     
-    service.remove ("MyService");
+    service.remove ("my-service");
     
     var logStream = fs.createWriteStream ("my-service.log");
     
@@ -48,9 +48,15 @@ with a `--add` parameter, and removes the created service when called with a
 `--remove` parameter:
 
     if (process.argv[2] == "--add") {
-        service.add ("MyService", {programArgs: ["--run"]});
+        service.add ("my-service", {programArgs: ["--run"]}, function(error){ 
+           if (error)
+              console.trace(error);
+        });
     } else if (process.argv[2] == "--remove") {
-        service.remove ("MyService");
+        service.remove ("my-service", function(error){ 
+           if (error)
+              console.trace(error);
+        }););
     } else if (process.argv[2] == "--run") {
         var logStream = fs.createWriteStream (process.argv[1] + ".log");
         
@@ -81,15 +87,33 @@ the `service.run()` function.
 
 The following example adds or removes number of services:
 
-    if (program.argv[2] == "--add") {
-        service.add ("Service1", {programPath: "c:\example\service1.js"});
-        service.add ("Service2", {programPath: "c:\example\service2.js"});
-        service.add ("Service3", {programPath: "c:\example\service3.js"});
-    } else {
-        service.remove ("Service1");
-        service.remove ("Service2");
-        service.remove ("Service3");
-    }
+   if (program.argv[2] == "--add") {
+      service.add ("service1", {programPath: "c:\example\svc1.js",
+            function(error) { 
+               if (error) {
+                  console.trace(error);
+               } else {
+                  service.add ("service2", {programPath: "c:\example\svc2.js",
+                        function(error) { 
+                              if (error) {
+                                 console.trace(error);
+                              }
+                        });
+               }
+            });
+   } else {
+      service.remove ("service2", function(error) { 
+         if (error) {
+            console.trace(error);
+         } else {
+            service.remove ("service1", function(error) { 
+               if (error) {
+                  console.trace(error);
+               }
+            });
+         }
+      });
+   }
 
 Note that unlike the previous example the `--run` argument is not passed in
 the `options` parameter to the `service.add()` function.  Since each service
@@ -127,6 +151,10 @@ program is running at the console and silently ignore this error.
 
 On Linux, services started at the console will run in the foreground, this
 allows command sequences such as `CTRL+C` to be used, e.g. during development.
+When Linux services are started using the Linux service management facilities,
+i.e. `service my-service start`, they can be stopped using the signals `SIGINT`
+and `SIGTERM`, or again using the Linux service management facilities, i.e.
+`service my-service stop`.
 
 This behaviour results in a program which can be run either at the console, the
 Windows Service Control Manager, or the Linux service management facilities
@@ -147,9 +175,14 @@ avoid different behaviour between the two methods of starting a program.
 # Using This Module
 
 This module attempts to behave in exactly the same way on Windows and Linux
-platforms - the API is exactly the same for both platforms.
+platforms - at least the API is exactly the same for both platforms both from
+a service management and service running perspective.
 
-## service.add (name, [options])
+On Windows platforms the Windows Service Control Manager WIN32 API is used to
+manage services.  On Linux platforms the `chkconfig` command is used, and if
+not available, the `update-rc.d` command is used instead.
+
+## service.add (name, [options], cb)
 
 The `add()` function adds a service.
 
@@ -172,8 +205,10 @@ The service will be set to automatically start at boot time, but not started.
 The service can be started using the `net start "my-service"` command on
 Windows and `service my-service start` on Linux.
 
-An exception will be thrown if the service could not be added.  The error will
-be an instance of the `Error` class.
+The `cb` callback function is called once the service has been added. The
+following arguments will be passed to the callback function:
+
+ * `error` - Instance of the `Error` class, or `null` if no error occurred
 
 The following example installs a service named `my-service`, it explicitly
 specifies the services display name, and specifies a number of parameters to
@@ -184,9 +219,12 @@ the program:
         programArgs: ["--server-port", 8888]
     };
     
-    service.add ("my-service", options);
+    service.add ("my-service", options, function(error) {
+        if (error)
+            console.trace(error);
+    });
 
-## service.remove (name)
+## service.remove (name, cb)
 
 The `remove()` function removes a service.
 
@@ -197,16 +235,21 @@ The service must be in a stopped state for it to be removed.  The
 `net stop "my-service"` command can be used to stop the service on Windows and
 the `service my-service stop` on Linux before it is to be removed.
 
-An exception will be thrown if the service could not be removed.  The error
-will be an instance of the `Error` class.
+The `cb` callback function is called once the service has been removed. The
+following arguments will be passed to the callback function:
+
+ * `error` - Instance of the `Error` class, or `null` if no error occurred
 
 The following example removes the service named `my-service`:
 
-    service.remove ("my-service");
+    service.remove ("my-service", function(error) {
+        if (error)
+            console.trace(error);
+    });
 
 ## service.run (stdoutLogStream, [stderrLogStream,] callback)
 
-The `run()` function will attempt to run the program as a background process.
+The `run()` function will attempt to run the program as a service.
 
 The programs `process.stdout` stream will be replaced with the
 `stdoutLogStream` parameter, and the programs `process.stderr` stream
