@@ -1,0 +1,27 @@
+{
+  "name": "windows-service",
+  "version": "1.0.4",
+  "description": "Run Node.JS programs as native Windows Services.",
+  "main": "index.js",
+  "directories": {
+    "example": "example"
+  },
+  "dependencies": {},
+  "contributors": [ 
+    {
+      "name": "Stephen Vickers",
+      "email": "stephen.vickers.sv@gmail.com"
+    } 
+  ],
+  "repository": {
+    "type": "mercurial",
+    "url": "https://bitbucket.org/stephenwvickers/node-windows-service"
+  },
+  "keywords": [
+    "service",
+  	 "windows",
+  	 "windows-service"
+  ],
+  "author": "Stephen Vickers <stephen.vickers.sv@gmail.com>",
+  "license": "MIT"
+}
