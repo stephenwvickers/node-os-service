@@ -15,9 +15,15 @@ function usage () {
 }
 
 if (process.argv[2] == "--add" && process.argv.length >= 4) {
-	service.add (process.argv[3], {programArgs: ["--run"]});
+	service.add (process.argv[3], {programArgs: ["--run", "me"]}, function(error) {
+		if (error)
+			console.log(error.toString());
+	});
 } else if (process.argv[2] == "--remove" && process.argv.length >= 4) {
-	service.remove (process.argv[3]);
+	service.remove (process.argv[3], function(error) {
+		if (error)
+			console.log(error.toString());
+	});
 } else if (process.argv[2] == "--run") {
 	var logStream = fs.createWriteStream (process.argv[1] + ".log");
 	service.run (logStream, function () {

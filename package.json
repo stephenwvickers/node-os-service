@@ -1,7 +1,7 @@
 {
-  "name": "windows-service",
-  "version": "1.0.4",
-  "description": "Run Node.JS programs as native Windows Services.",
+  "name": "os-service",
+  "version": "1.0.0",
+  "description": "Run Node.JS programs as native Operating System Services.",
   "main": "index.js",
   "directories": {
     "example": "example"
@@ -15,11 +15,17 @@
   ],
   "repository": {
     "type": "mercurial",
-    "url": "https://bitbucket.org/stephenwvickers/node-windows-service"
+    "url": "https://bitbucket.org/stephenwvickers/node-os-service"
   },
   "keywords": [
+    "background-process",
+    "background-service",
+    "daemon",
+    "linux-daemon",
+    "linux-service",
     "service",
   	 "windows",
+  	 "windows-daemon",
   	 "windows-service"
   ],
   "author": "Stephen Vickers <stephen.vickers.sv@gmail.com>",

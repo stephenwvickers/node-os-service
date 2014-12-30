@@ -1,26 +1,27 @@
 
-# windows-service - [homepage][homepage]
+# os-service - [homepage][homepage]
 
 This module implements the ability to run a [Node.js][nodejs] based JavaScript
-program as a native Windows service.
+program as a native Windows service or a Linux daemon.
 
 This module is installed using [node package manager (npm)][npm]:
 
     # This module contains C++ source code which will be compiled
-    # during installation using node-gyp.  A suitable build chain
-    # must be configured before installation.
+    # during installation on Windows platforms using node-gyp.  A
+    # suitable build chain must be configured on Windows platforms
+    # before installation.
     
-    npm install windows-service
+    npm install os-service
 
 It is loaded using the `require()` function:
 
-    var service = require ("windows-service");
+    var service = require ("os-service");
 
-A program can then be added, removed and run as a Windows service:
+A program can then be added, removed and run as a service:
 
-    service.add ("My Service");
+    service.add ("MyService");
     
-    service.remove ("My Service");
+    service.remove ("MyService");
     
     var logStream = fs.createWriteStream ("my-service.log");
     
@@ -47,9 +48,9 @@ with a `--add` parameter, and removes the created service when called with a
 `--remove` parameter:
 
     if (process.argv[2] == "--add") {
-        service.add ("My Service", {programArgs: ["--run"]});
+        service.add ("MyService", {programArgs: ["--run"]});
     } else if (process.argv[2] == "--remove") {
-        service.remove ("My Service");
+        service.remove ("MyService");
     } else if (process.argv[2] == "--run") {
         var logStream = fs.createWriteStream (process.argv[1] + ".log");
         
@@ -64,9 +65,9 @@ with a `--add` parameter, and removes the created service when called with a
 
 Note the `--run` argument passed in the `options` parameter to the
 `service.add()` function.  When the service is started using the Windows
-Service Control Manager the first argument to the program will be `--run`.
-The above program checks for this and if specified runs as a service using
-the `service.run()` function.
+Service Control Manager, or the Linux service management facilities,  the first
+argument to the program will be `--run`.  The above program checks for this and
+if specified runs as a service using the `service.run()` function.
 
 Also note that neither the node binary or the programs fully qualified path
 are specified.  These parameters are automatically calculated it not
@@ -81,13 +82,13 @@ the `service.run()` function.
 The following example adds or removes number of services:
 
     if (program.argv[2] == "--add") {
-        service.add ("Service 1", {programPath: "c:\example\service1.js"});
-        service.add ("Service 2", {programPath: "c:\example\service2.js"});
-        service.add ("Service 3", {programPath: "c:\example\service3.js"});
+        service.add ("Service1", {programPath: "c:\example\service1.js"});
+        service.add ("Service2", {programPath: "c:\example\service2.js"});
+        service.add ("Service3", {programPath: "c:\example\service3.js"});
     } else {
-        service.remove ("Service 1");
-        service.remove ("Service 2");
-        service.remove ("Service 3");
+        service.remove ("Service1");
+        service.remove ("Service2");
+        service.remove ("Service3");
     }
 
 Note that unlike the previous example the `--run` argument is not passed in
@@ -114,27 +115,29 @@ following code:
 # Running Service Programs
 
 When a service program starts it can always call the `service.run()` function
-regardless of whether it is started at the console, or by the Windows Service
-Control Manager.
+regardless of whether it is started at the console, by the Windows Service
+Control Manager, or the Linux service management facilities.
 
-When the `service.run()` function is called this module will attempt to
-connect to the Windows Service Control Manager so that control requests can be
-received - so that the service can be stopped.
+On Windows, when the `service.run()` function is called this module will
+attempt to connect to the Windows Service Control Manager so that control
+requests can be received - so that the service can be stopped.  When starting a
+program at the console an attempt to connect to the Windows Service Control
+Manager will fail.  In this case the `service.run()` function will assume the
+program is running at the console and silently ignore this error.
 
-When starting a program at the console an attempt to connect to the Windows
-Service Control Manager will fail.  In this case the `service.run()` function
-will assume the program is running at the console and silently ignore this
-error.
+On Linux, services started at the console will run in the foreground, this
+allows command sequences such as `CTRL+C` to be used, e.g. during development.
 
-This behaviour results in a program which can be run either at the console or
-the Windows Service Control Manager with no change.
+This behaviour results in a program which can be run either at the console, the
+Windows Service Control Manager, or the Linux service management facilities
+with no change.
 
 # Current Working Directory
 
-Upon starting the current working directory of a service program will be the
-`"%windir%\system32"` directory (i.e. `c:\windows\system32`).  Service
-programs need to consider this when working with relative directory and file
-paths.
+Upon starting the current working directory of a service program will be
+platform specific the , e.g. the `"%windir%\system32"` directory on Windows.
+Service programs need to consider this when working with relative directory and
+file paths.
 
 This path will most likely be different when running the same program at the
 console, so a service program may wish to change the current working
@@ -143,22 +146,18 @@ avoid different behaviour between the two methods of starting a program.
 
 # Using This Module
 
-Given the intended purpose of this module only Windows platforms are
-supported.
-
-However, this module aims to support other platforms in the future.  That is
-it aims to support installing as a service on other platforms - by creating
-`/etc/init.d/...` scripts for example - so that the same service management
-code can be used to abstract away platform differences.
+This module attempts to behave in exactly the same way on Windows and Linux
+platforms - the API is exactly the same for both platforms.
 
 ## service.add (name, [options])
 
-The `add()` function adds a Windows service.
+The `add()` function adds a service.
 
 The `name` parameter specifies the name of the created service.  The optional
 `options` parameter is an object, and can contain the following items:
 
  * `displayName` - The services display name, defaults to the `name` parameter
+   - this parameter will be used on Windows platforms only
  * `nodePath` - The fully qualified path to the node binary used to run the
    service (i.e. `c:\Program Files\nodejs\node.exe`, defaults to the value of
    `process.execPath`
@@ -170,17 +169,18 @@ The `name` parameter specifies the name of the created service.  The optional
    `programPath`, defaults to `[]`
 
 The service will be set to automatically start at boot time, but not started.
-The service can be started using the `net start "My Service"` command.
+The service can be started using the `net start "my-service"` command on
+Windows and `service my-service start` on Linux.
 
 An exception will be thrown if the service could not be added.  The error will
 be an instance of the `Error` class.
 
-The following example installs a service named `My Service`, it explicitly
+The following example installs a service named `my-service`, it explicitly
 specifies the services display name, and specifies a number of parameters to
 the program:
 
     var options = {
-        displayName: "My Service",
+        displayName: "MyService",
         programArgs: ["--server-port", 8888]
     };
     
@@ -188,26 +188,25 @@ the program:
 
 ## service.remove (name)
 
-The `remove()` function removes a Windows service.
+The `remove()` function removes a service.
 
 The `name` parameter specifies the name of the service to remove.  This will
 be the same `name` parameter specified when adding the service.
 
 The service must be in a stopped state for it to be removed.  The
-`net stop "My Service"` command can be used to stop the service before it is
-to be removed.
+`net stop "my-service"` command can be used to stop the service on Windows and
+the `service my-service stop` on Linux before it is to be removed.
 
 An exception will be thrown if the service could not be removed.  The error
 will be an instance of the `Error` class.
 
-The following example removes the service named `My Service`:
+The following example removes the service named `my-service`:
 
-    service.remove ("My Service");
+    service.remove ("my-service");
 
 ## service.run (stdoutLogStream, [stderrLogStream,] callback)
 
-The `run()` function will connect the calling program to the Windows Service
-Control Manager, allowing the program to run as a Windows service.
+The `run()` function will attempt to run the program as a background process.
 
 The programs `process.stdout` stream will be replaced with the
 `stdoutLogStream` parameter, and the programs `process.stderr` stream
@@ -216,14 +215,14 @@ all `console.log()` type calls to a service specific log file).  If the
 `stderrLogStream` parameter is not specified the programs `process.stderr`
 stream will be replaced with the `stdoutLogStream` parameter.  The `callback`
 function will be called when the service receives a stop request, e.g. because
-the Windows Service Controller was used to send a stop request to the service.
+the Windows Service Controller was used to send a stop request to the service,
+or a `SIGTERM` signal was received.
 
 The program should perform cleanup tasks and then call the `service.stop()`
 function.
 
-The following example connects the calling program to the Windows Service
-Control Manager, it uses the same log stream for standard output and standard
-error:
+The following example starts a program as a service, it uses the same log
+stream for standard output and standard error:
 
     var logStream = fs.createWriteStream ("my-service.log");
     
@@ -266,44 +265,17 @@ Bug reports should be sent to <stephen.vickers.sv@gmail.com>.
 
 # Changes
 
-## Version 1.0.0 - 21/02/2013
+## Version 1.0.0 - 30/12/2014
 
  * Initial release
 
-## Version 1.0.1 - 11/05/2013
-
- * `runInitialised` was not set to `true` when the service is `run()` for the
-   first time in index.js
- * Use MIT license instead of GPL
-
-## Version 1.0.2 - 15/08/2013
-
- * The variable `rcode` in the `run()` function defined in `service.cc` was
-   not used
-
-## Version 1.0.3 - 23/08/2014
-
- * Windows reports an error when stopping the service, indicate to Windows
-   the service is stopping to prevent Windows from generating an error
-
-## Version 1.0.4 - 26/08/2014
-
- * High CPU utilisation when running services as console programs
-
 # Roadmap
-
-In no particular order:
-
- * Specify whether the service should auto-starting on boot
- * Add provisions for running under UNIX platforms (i.e. daemonize,
-   conditional compile of C++ code for Windows only, create `/etc/init.d/...`
-   scripts)
 
 Suggestions and requirements should be sent to <stephen.vickers.sv@gmail.com>.
 
 # License
 
-Copyright (c) 2013 Stephen Vickers
+Copyright (c) 2014 Stephen Vickers
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
