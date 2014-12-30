@@ -87,33 +87,33 @@ the `service.run()` function.
 
 The following example adds or removes number of services:
 
-   if (program.argv[2] == "--add") {
-      service.add ("service1", {programPath: "c:\example\svc1.js",
+    if (program.argv[2] == "--add") {
+        service.add ("service1", {programPath: "c:\example\svc1.js",
             function(error) { 
-               if (error) {
-                  console.trace(error);
-               } else {
-                  service.add ("service2", {programPath: "c:\example\svc2.js",
+                if (error) {
+                    console.trace(error);
+                } else {
+                    service.add ("service2", {programPath: "c:\example\svc2.js",
                         function(error) { 
-                              if (error) {
-                                 console.trace(error);
-                              }
+                            if (error) {
+                                console.trace(error);
+                            }
                         });
-               }
+                }
             });
-   } else {
-      service.remove ("service2", function(error) { 
-         if (error) {
-            console.trace(error);
-         } else {
-            service.remove ("service1", function(error) { 
-               if (error) {
-                  console.trace(error);
-               }
-            });
-         }
-      });
-   }
+    } else {
+        service.remove ("service2", function(error) { 
+            if (error) {
+                console.trace(error);
+            } else {
+                service.remove ("service1", function(error) { 
+                    if (error) {
+                        console.trace(error);
+                    }
+                });
+            }
+        });
+    }
 
 Note that unlike the previous example the `--run` argument is not passed in
 the `options` parameter to the `service.add()` function.  Since each service
