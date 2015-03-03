@@ -312,6 +312,10 @@ Bug reports should be sent to <stephen.vickers.sv@gmail.com>.
 
  * Initial release
 
+## Version 1.0.1 - 03/03/2015
+
+ * Support Linux platforms which don't have the start-stop-daemon program
+
 # Roadmap
 
 Suggestions and requirements should be sent to <stephen.vickers.sv@gmail.com>.
