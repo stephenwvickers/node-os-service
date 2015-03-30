@@ -315,6 +315,10 @@ Bug reports should be sent to <stephen.vickers.sv@gmail.com>.
 ## Version 1.0.1 - 03/03/2015
 
  * Support Linux platforms which don't have the start-stop-daemon program
+ 
+## Version 1.0.2 - 30/03/2015
+
+ * Linux start/stop link under `/etc/rcN.d` directories are not removed
 
 # Roadmap
 

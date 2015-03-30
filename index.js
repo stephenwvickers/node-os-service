@@ -277,25 +277,30 @@ function remove (name, cb) {
 			cb(error);
 		}
 	} else {
-		var ctlPath = "/etc/init.d/" + name;
+		function removeCtlPath(cb) {
+			var ctlPath = "/etc/init.d/" + name;
 
-		fs.unlink(ctlPath, function(error) {
-			if (error) {
-				cb(error);
+			fs.unlink(ctlPath, cb);
+		};
+	
+		// Try chkconfig first, then update-rc.d. update-rc.d seems to want us to
+		// remove our /etc/init.d file first.
+		var child = child_process.spawn("chkconfig", ["--del", name]);
+
+		child.on("exit", function(code) {
+			if (code != 0) {
+				cb(new Error("chkconfig failed: " + code));
 			} else {
-				// Try chkconfig first, then update-rc.d
-				var child = child_process.spawn("chkconfig", ["--del", name]);
+				removeCtlPath(cb);
+			}
+		});
 
-				child.on("exit", function(code) {
-					if (code != 0) {
-						cb(new Error("chkconfig failed: " + code));
+		child.on("error", function(error) {
+			if (error.errno == "ENOENT") {
+				removeCtlPath(function(error) {
+					if (error) {
+						cb(error);
 					} else {
-						cb();
-					}
-				});
-		
-				child.on("error", function(error) {
-					if (error.errno == "ENOENT") {
 						var child = child_process.spawn("update-rc.d", [name, "remove"]);
 
 						child.on("exit", function(code) {
@@ -305,14 +310,14 @@ function remove (name, cb) {
 								cb();
 							}
 						});
-		
+
 						child.on("error", function(error) {
 							cb(new Error("chkconfig failed: " + error.errno));
 						});
-					} else {
-						cb(error);
 					}
 				});
+			} else {
+				cb(error);
 			}
 		});
 	}
