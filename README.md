@@ -15,20 +15,24 @@ This module is installed using [node package manager (npm)][npm]:
 
 It is loaded using the `require()` function:
 
-    var service = require ("os-service");
+```javascript
+var service = require ("os-service");
+```
 
 A program can then be added, removed and run as a service:
 
-    service.add ("my-service");
-    
-    service.remove ("my-service");
-    
-    var logStream = fs.createWriteStream ("my-service.log");
-    
-    service.run (logStream, function () {
-        console.log ("stop request received");
-        service.stop ();
-    });
+```javascript
+service.add ("my-service");
+
+service.remove ("my-service");
+
+var logStream = fs.createWriteStream ("my-service.log");
+
+service.run (logStream, function () {
+    console.log ("stop request received");
+    service.stop ();
+});
+```
 
 [nodejs]: http://nodejs.org "Node.js"
 [npm]: https://npmjs.org/ "npm"
@@ -46,27 +50,29 @@ The following example adds the calling program as a service when called
 with a `--add` parameter, and removes the created service when called with a
 `--remove` parameter:
 
-    if (process.argv[2] == "--add") {
-        service.add ("my-service", {programArgs: ["--run"]}, function(error){ 
-           if (error)
-              console.trace(error);
-        });
-    } else if (process.argv[2] == "--remove") {
-        service.remove ("my-service", function(error){ 
-           if (error)
-              console.trace(error);
-        }););
-    } else if (process.argv[2] == "--run") {
-        var logStream = fs.createWriteStream (process.argv[1] + ".log");
-        
-        service.run (logStream, function () {
-            service.stop (0);
-        });
-        
-        // Run service program code...
-    } else {
-        // Show usage...
-    }
+```javascript
+if (process.argv[2] == "--add") {
+    service.add ("my-service", {programArgs: ["--run"]}, function(error){ 
+       if (error)
+          console.trace(error);
+    });
+} else if (process.argv[2] == "--remove") {
+    service.remove ("my-service", function(error){ 
+       if (error)
+          console.trace(error);
+    }););
+} else if (process.argv[2] == "--run") {
+    var logStream = fs.createWriteStream (process.argv[1] + ".log");
+    
+    service.run (logStream, function () {
+        service.stop (0);
+    });
+    
+    // Run service program code...
+} else {
+    // Show usage...
+}
+```
 
 Note the `--run` argument passed in the `options` parameter to the
 `service.add()` function.  When the service is started using the Windows
@@ -86,33 +92,35 @@ the `service.run()` function.
 
 The following example adds or removes number of services:
 
-    if (program.argv[2] == "--add") {
-        service.add ("service1", {programPath: "c:\example\svc1.js",
-            function(error) { 
-                if (error) {
-                    console.trace(error);
-                } else {
-                    service.add ("service2", {programPath: "c:\example\svc2.js",
-                        function(error) { 
-                            if (error) {
-                                console.trace(error);
-                            }
-                        });
-                }
-            });
-    } else {
-        service.remove ("service2", function(error) { 
+```javascript
+if (program.argv[2] == "--add") {
+    service.add ("service1", {programPath: "c:\example\svc1.js",
+        function(error) { 
             if (error) {
                 console.trace(error);
             } else {
-                service.remove ("service1", function(error) { 
-                    if (error) {
-                        console.trace(error);
-                    }
-                });
+                service.add ("service2", {programPath: "c:\example\svc2.js",
+                    function(error) { 
+                        if (error) {
+                            console.trace(error);
+                        }
+                    });
             }
         });
-    }
+} else {
+    service.remove ("service2", function(error) { 
+        if (error) {
+            console.trace(error);
+        } else {
+            service.remove ("service1", function(error) { 
+                if (error) {
+                    console.trace(error);
+                }
+            });
+        }
+    });
+}
+```
 
 Note that unlike the previous example the `--run` argument is not passed in
 the `options` parameter to the `service.add()` function.  Since each service
@@ -127,13 +135,65 @@ program adding the services.
 Each of the service programs can simply start themselves as services using the
 following code:
 
-    var logStream = fs.createWriteStream (process.argv[1] + ".log");
+```javascript
+var logStream = fs.createWriteStream (process.argv[1] + ".log");
+
+service.run (logStream, function () {
+    service.stop (0);
+});
+
+// Run service program code...
+```
+# Quick Start
+For a quickly use of `node-os-service` can be created two files. `serviceFactory.js` will create the service, and if it already exists, delete and recreate it. `service.js` is the service itself, that will log a data each 1000 miliseconds.
+**NOTE:** You must execute `node serviceFactory.js` with administrator/superuser privileges.
+
+```javascript
+// serviceFactory.js
+
+var path = require('path'),
+  service = require('os-service'),
+  options = {
+    displayName: "NodeJS Service",
+    programPath: path.join(__dirname, 'service.js')
+  };
+
+// Try to remove the service if it exists
+service.remove ('node-js-service', function(error) {
+    if (error) {
+      console.trace(error);
+    }
+
+    // Create process
+    service.add ('node-js-service', options, function (err) {
+      if (err) {
+        throw err;
+      }
     
-    service.run (logStream, function () {
-        service.stop (0);
+      console.log('The service has been added');
     });
-    
-    // Run service program code...
+});
+
+// service.js
+
+var service = require('os-service'),
+  fs = require('fs'),
+  logStream;
+
+// Change to the examples directory so this program can run as a service
+process.chdir(__dirname);
+
+logStream = fs.createWriteStream ('node-js-service.log');
+
+service.run (logStream, function () {
+  service.stop (0);
+});
+
+// Here is our long running code, simply print a date/time string to our log file
+setInterval (function () {
+	console.error (new Date ().toString ());
+}, 1000);
+```
 
 # Running Service Programs
 
@@ -213,15 +273,17 @@ The following example installs a service named `my-service`, it explicitly
 specifies the services display name, and specifies a number of parameters to
 the program:
 
-    var options = {
-        displayName: "MyService",
-        programArgs: ["--server-port", 8888]
-    };
-    
-    service.add ("my-service", options, function(error) {
-        if (error)
-            console.trace(error);
-    });
+```javascript
+var options = {
+    displayName: "MyService",
+    programArgs: ["--server-port", 8888]
+};
+
+service.add ("my-service", options, function(error) {
+    if (error)
+        console.trace(error);
+});
+```
 
 ## service.remove (name, cb)
 
@@ -241,10 +303,12 @@ following arguments will be passed to the callback function:
 
 The following example removes the service named `my-service`:
 
-    service.remove ("my-service", function(error) {
-        if (error)
-            console.trace(error);
-    });
+```javascript
+service.remove ("my-service", function(error) {
+    if (error)
+        console.trace(error);
+});
+```
 
 ## service.run (stdoutLogStream, [stderrLogStream,] callback)
 
@@ -266,12 +330,14 @@ function.
 The following example starts a program as a service, it uses the same log
 stream for standard output and standard error:
 
-    var logStream = fs.createWriteStream ("my-service.log");
-    
-    service.run (logStream, function () {
-        console.log ("stop request received");
-        service.stop ();
-    });
+```javascript
+var logStream = fs.createWriteStream ("my-service.log");
+
+service.run (logStream, function () {
+    console.log ("stop request received");
+    service.stop ();
+});
+```
 
 ## service.stop ([rcode])
 
@@ -288,12 +354,14 @@ finished performing cleanup tasks.
 The following example stops the calling program specifying a return code of
 `0`, the function will not return:
 
-    var logStream = fs.createWriteStream ("my-service.log");
+```javascript
+var logStream = fs.createWriteStream ("my-service.log");
 
-    service.run (logStream, function () {
-        console.log ("stop request received");
-        service.stop (0);
-    });
+service.run (logStream, function () {
+    console.log ("stop request received");
+    service.stop (0);
+});
+```
 
 # Example Programs
 
