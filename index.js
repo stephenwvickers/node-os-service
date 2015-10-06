@@ -8,6 +8,7 @@ var serviceWrap;
 var runInitialised = false;
 
 var linuxStartStopScript = [
+	'#!/bin/bash',
 	'### BEGIN INIT INFO',
 	'# Provides:          ##NAME##',
 	'# Required-Start:    ',
@@ -161,7 +162,7 @@ function add (name, options, cb) {
 		var displayName = (options && options.displayName)
 				? options.displayName
 				: name;
-		
+
 		var serviceArgs = [];
 
 		serviceArgs.push (nodePath);
@@ -171,14 +172,14 @@ function add (name, options, cb) {
 				serviceArgs.push (options.nodeArgs[i]);
 
 		serviceArgs.push (programPath);
-	
+
 		if (options && options.programArgs)
 			for (var i = 0; i < options.programArgs.length; i++)
 				serviceArgs.push (options.programArgs[i]);
-	
+
 		for (var i = 0; i < serviceArgs.length; i++)
 			serviceArgs[i] = "\"" + serviceArgs[i] + "\"";
-	
+
 		var servicePath = serviceArgs.join (" ");
 
 		try {
@@ -205,30 +206,30 @@ function add (name, options, cb) {
 
 		for (var i = 0; i < linuxStartStopScript.length; i++) {
 			var line = linuxStartStopScript[i];
-			
+
 			line = line.replace("##NAME##", name);
 			line = line.replace("##NODE_PATH##", nodePath);
 			line = line.replace("##NODE_ARGS##", nodeArgsStr);
 			line = line.replace("##PROGRAM_PATH##", programPath);
 			line = line.replace("##PROGRAM_ARGS##", programArgsStr);
-			
+
 			startStopScript.push(line);
 		}
-		
+
 		var startStopScriptStr = startStopScript.join("\n");
-		
+
 		var ctlPath = "/etc/init.d/" + name;
 		var ctlOptions = {
 			mode: 493 // rwxr-xr-x
 		};
-		
+
 		fs.writeFile(ctlPath, startStopScriptStr, ctlOptions, function(error) {
 			if (error) {
 				cb(error);
 			} else {
 				// Try chkconfig first, then update-rc.d
 				var child = child_process.spawn("chkconfig", ["--add", name]);
-		
+
 				child.on("exit", function(code) {
 					if (code != 0) {
 						cb(new Error("chkconfig failed: " + code));
@@ -236,12 +237,12 @@ function add (name, options, cb) {
 						cb();
 					}
 				});
-				
+
 				child.on("error", function(error) {
 					if (error.errno == "ENOENT") {
 						var child = child_process.spawn("update-rc.d",
 								[name, "defaults"]);
-		
+
 						child.on("exit", function(code) {
 							if (code != 0) {
 								cb(new Error("update-rc.d failed: " + code));
@@ -249,7 +250,7 @@ function add (name, options, cb) {
 								cb();
 							}
 						});
-				
+
 						child.on("error", function(error) {
 							cb(new Error("chkconfig failed: " + error.errno));
 						});
@@ -260,7 +261,7 @@ function add (name, options, cb) {
 			}
 		});
 	}
-	
+
 	return this;
 }
 
@@ -282,7 +283,7 @@ function remove (name, cb) {
 
 			fs.unlink(ctlPath, cb);
 		};
-	
+
 		// Try chkconfig first, then update-rc.d. update-rc.d seems to want us to
 		// remove our /etc/init.d file first.
 		var child = child_process.spawn("chkconfig", ["--del", name]);
@@ -333,11 +334,11 @@ function run (stdoutLogStream, stderrLogStream, stopCallback) {
 		process.__defineGetter__('stdout', function() {
 			return stdoutLogStream;
 		});
-		
+
 		process.__defineGetter__('stderr', function() {
 			return stderrLogStream;
 		});
-		
+
 		if (os.platform() == "win32") {
 			setInterval (function () {
 				if (isStopRequested ()) {
@@ -353,10 +354,10 @@ function run (stdoutLogStream, stderrLogStream, stopCallback) {
 				stopCallback ();
 			});
 		}
-		
+
 		runInitialised = true;
 	}
-	
+
 	if (os.platform() == "win32") {
 		getServiceWrap ().run ();
 	}
