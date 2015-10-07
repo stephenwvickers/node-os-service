@@ -8,6 +8,7 @@ var serviceWrap;
 var runInitialised = false;
 
 var linuxStartStopScript = [
+	'#!/bin/bash',
 	'### BEGIN INIT INFO',
 	'# Provides:          ##NAME##',
 	'# Required-Start:    ',
