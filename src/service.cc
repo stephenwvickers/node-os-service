@@ -115,7 +115,7 @@ void InitAll (Handle<Object> exports) {
 	pthread_mutex_init(&status_handle_mtx, NULL);
 	pthread_mutex_init(&stop_requested_mtx, NULL);
 	pthread_mutex_init(&stop_service_mtx, NULL);
-	
+
 	pthread_cond_init(&stop_service, NULL);
 
 	exports->Set(Nan::New("add").ToLocalChecked(),
@@ -123,13 +123,13 @@ void InitAll (Handle<Object> exports) {
 
 	exports->Set(Nan::New("isStopRequested").ToLocalChecked(),
 			Nan::GetFunction(Nan::New<FunctionTemplate>(IsStopRequested)).ToLocalChecked());
-	
+
 	exports->Set(Nan::New("remove").ToLocalChecked(),
 			Nan::GetFunction(Nan::New<FunctionTemplate>(Remove)).ToLocalChecked());
-	
+
 	exports->Set(Nan::New("run").ToLocalChecked(),
 			Nan::GetFunction(Nan::New<FunctionTemplate>(Run)).ToLocalChecked());
-	
+
 	exports->Set(Nan::New("stop").ToLocalChecked(),
 			Nan::GetFunction(Nan::New<FunctionTemplate>(Stop)).ToLocalChecked());
 }
@@ -138,31 +138,31 @@ NODE_MODULE(service, InitAll)
 
 NAN_METHOD(Add) {
 	Nan::HandleScope scope;
-	
+
 	if (info.Length() < 3) {
 		Nan::ThrowError("Two arguments are required");
 		return;
 	}
-	
+
 	if (! info[0]->IsString()) {
 		Nan::ThrowTypeError("Name argument must be a string");
 		return;
 	}
-	
+
 	Nan::Utf8String name(info[0]);
 
 	if (! info[1]->IsString ()) {
 		Nan::ThrowTypeError("Display name argument must be a string");
 		return;
 	}
-	
+
 	Nan::Utf8String display_name(info[1]);
 
 	if (! info[2]->IsString ()) {
 		Nan::ThrowTypeError("Name argument must be a string");
 		return;
 	}
-	
+
 	Nan::Utf8String path(info[2]);
 
 	std::string username;
@@ -206,6 +206,24 @@ NAN_METHOD(Add) {
 		return;
 	}
 
+  static const DWORD delay = 1000 * 60;
+	SC_ACTION actions[] = {{SC_ACTION_RESTART, delay}, {SC_ACTION_RESTART, delay}, {SC_ACTION_RESTART, delay}};
+	SERVICE_FAILURE_ACTIONS failure_actions;
+	failure_actions.dwResetPeriod = 60 * 60 * 24; // 1 day
+	failure_actions.lpRebootMsg = NULL;
+	failure_actions.lpCommand = NULL;
+	failure_actions.cActions = sizeof(actions) / sizeof(SC_ACTION);
+	failure_actions.lpsaActions = actions;
+
+	if (!ChangeServiceConfig2(svc_handle, SERVICE_CONFIG_FAILURE_ACTIONS, &failure_actions)) {
+		std::string message ("ChangeServiceConfig(SERVICE_CONFIG_FAILURE_ACTIONS) failed: ");
+		message += raw_strerror (GetLastError ());
+		CloseServiceHandle (svc_handle);
+		CloseServiceHandle (scm_handle);
+		Nan::ThrowError(message.c_str());
+		return;
+	}
+
 	CloseServiceHandle (svc_handle);
 	CloseServiceHandle (scm_handle);
 
@@ -219,23 +237,23 @@ NAN_METHOD(IsStopRequested) {
 	bool requested = stop_requested ? true : false;
 	stop_requested = false;
 	pthread_mutex_unlock (&stop_requested_mtx);
-	
+
 	info.GetReturnValue().Set(requested);
 }
 
 NAN_METHOD(Remove) {
 	Nan::HandleScope scope;
-	
+
 	if (info.Length () < 1) {
 		Nan::ThrowError("One argument is required");
 		return;
 	}
-	
+
 	if (! info[0]->IsString ()) {
 		Nan::ThrowTypeError("Name argument must be a string");
 		return;
 	}
-	
+
 	Nan::Utf8String name(info[0]);
 
 	SC_HANDLE scm_handle = OpenSCManager (0, SERVICES_ACTIVE_DATABASE,
@@ -273,7 +291,7 @@ NAN_METHOD(Remove) {
 
 NAN_METHOD(Run) {
 	Nan::HandleScope scope;
-	
+
 	if (run_initialised) {
 		info.GetReturnValue().Set(info.This());
 		return;
@@ -290,7 +308,7 @@ NAN_METHOD(Run) {
 	} else {
 		CloseHandle (handle);
 	}
-	
+
 	run_initialised = true;
 
 	info.GetReturnValue().Set(info.This());
@@ -298,27 +316,27 @@ NAN_METHOD(Run) {
 
 NAN_METHOD(Stop) {
 	Nan::HandleScope scope;
-	
+
 	if (! run_initialised) {
 		info.GetReturnValue().Set(info.This());
 		return;
 	}
-	
+
 	int rcode = 0;
-	
+
 	if (info.Length () > 1) {
 		if (! info[0]->IsUint32 ()) {
 			Nan::ThrowTypeError("Name argument must be a string");
 			return;
 		}
-		
+
 		rcode = info[0]->ToUint32()->Value();
 	}
-	
+
 	set_status (SERVICE_STOP_PENDING, NO_ERROR, 0);
-	
+
 	pthread_cond_signal (&stop_service);
-	
+
 	set_status (SERVICE_STOPPED, NO_ERROR, rcode);
 
 	info.GetReturnValue().Set(info.This());
