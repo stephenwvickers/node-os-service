@@ -14,22 +14,22 @@ This module is installed using [node package manager (npm)][npm]:
     npm install os-service
 
 It is loaded using the `require()` function:
-
-    var service = require ("os-service");
-
+```js
+var service = require ("os-service");
+```
 A program can then be added, removed and run as a service:
+```js
+service.add ("my-service");
 
-    service.add ("my-service");
-    
-    service.remove ("my-service");
-    
-    var logStream = fs.createWriteStream ("my-service.log");
-    
-    service.run (logStream, function () {
-        console.log ("stop request received");
-        service.stop ();
-    });
+service.remove ("my-service");
 
+var logStream = fs.createWriteStream ("my-service.log");
+
+service.run (logStream, function () {
+    console.log ("stop request received");
+    service.stop ();
+});
+```
 [nodejs]: http://nodejs.org "Node.js"
 [npm]: https://npmjs.org/ "npm"
 
@@ -45,29 +45,29 @@ appropriate action.
 The following example adds the calling program as a service when called
 with a `--add` parameter, and removes the created service when called with a
 `--remove` parameter:
-
-    if (process.argv[2] == "--add") {
-        service.add ("my-service", {programArgs: ["--run"]}, function(error){ 
-           if (error)
-              console.trace(error);
-        });
-    } else if (process.argv[2] == "--remove") {
-        service.remove ("my-service", function(error){ 
-           if (error)
-              console.trace(error);
-        });
-    } else if (process.argv[2] == "--run") {
-        var logStream = fs.createWriteStream (process.argv[1] + ".log");
-        
-        service.run (logStream, function () {
-            service.stop (0);
-        });
-        
-        // Run service program code...
-    } else {
-        // Show usage...
-    }
-
+```js
+if (process.argv[2] == "--add") {
+    service.add ("my-service", {programArgs: ["--run"]}, function(error){ 
+       if (error)
+          console.trace(error);
+    });
+} else if (process.argv[2] == "--remove") {
+    service.remove ("my-service", function(error){ 
+       if (error)
+          console.trace(error);
+    });
+} else if (process.argv[2] == "--run") {
+    var logStream = fs.createWriteStream (process.argv[1] + ".log");
+    
+    service.run (logStream, function () {
+        service.stop (0);
+    });
+    
+    // Run service program code...
+} else {
+    // Show usage...
+}
+```
 Note the `--run` argument passed in the `options` parameter to the
 `service.add()` function.  When the service is started using the Windows
 Service Control Manager, or the Linux service management facilities,  the first
@@ -85,7 +85,7 @@ adding and removing services is not a service itself, and would never call
 the `service.run()` function.
 
 The following example adds or removes number of services:
-
+```js
     if (program.argv[2] == "--add") {
         service.add ("service1", {programPath: "c:\example\svc1.js",
             function(error) { 
@@ -113,7 +113,7 @@ The following example adds or removes number of services:
             }
         });
     }
-
+```
 Note that unlike the previous example the `--run` argument is not passed in
 the `options` parameter to the `service.add()` function.  Since each service
 program does not add or remove itself as a service it only needs to run, and
@@ -126,15 +126,15 @@ program adding the services.
 
 Each of the service programs can simply start themselves as services using the
 following code:
+```js
+var logStream = fs.createWriteStream (process.argv[1] + ".log");
 
-    var logStream = fs.createWriteStream (process.argv[1] + ".log");
-    
-    service.run (logStream, function () {
-        service.stop (0);
-    });
-    
-    // Run service program code...
+service.run (logStream, function () {
+    service.stop (0);
+});
 
+// Run service program code...
+```
 # Running Service Programs
 
 When a service program starts it can always call the `service.run()` function
@@ -223,19 +223,19 @@ following arguments will be passed to the callback function:
 The following example installs a service named `my-service`, it explicitly
 specifies the services display name, and specifies a number of parameters to
 the program:
+```js
+var options = {
+    displayName: "MyService",
+    programArgs: ["--server-port", 8888],
+    username: ".\Stephen Vickers",
+    password: "MyPassword :)"
+};
 
-    var options = {
-        displayName: "MyService",
-        programArgs: ["--server-port", 8888],
-        username: ".\Stephen Vickers",
-        password: "MyPassword :)"
-    };
-    
-    service.add ("my-service", options, function(error) {
-        if (error)
-            console.trace(error);
-    });
-
+service.add ("my-service", options, function(error) {
+    if (error)
+        console.trace(error);
+});
+```
 ## service.remove (name, cb)
 
 The `remove()` function removes a service.
@@ -253,12 +253,12 @@ following arguments will be passed to the callback function:
  * `error` - Instance of the `Error` class, or `null` if no error occurred
 
 The following example removes the service named `my-service`:
-
-    service.remove ("my-service", function(error) {
-        if (error)
-            console.trace(error);
-    });
-
+```js
+service.remove ("my-service", function(error) {
+    if (error)
+        console.trace(error);
+});
+```
 ## service.run (stdoutLogStream, [stderrLogStream,] callback)
 
 The `run()` function will attempt to run the program as a service.
@@ -278,14 +278,14 @@ function.
 
 The following example starts a program as a service, it uses the same log
 stream for standard output and standard error:
+```js
+var logStream = fs.createWriteStream ("my-service.log");
 
-    var logStream = fs.createWriteStream ("my-service.log");
-    
-    service.run (logStream, function () {
-        console.log ("stop request received");
-        service.stop ();
-    });
-
+service.run (logStream, function () {
+    console.log ("stop request received");
+    service.stop ();
+});
+```
 ## service.stop ([rcode])
 
 The `stop()` function will cause the service to stop, and the calling program
@@ -300,14 +300,14 @@ finished performing cleanup tasks.
 
 The following example stops the calling program specifying a return code of
 `0`, the function will not return:
+```js
+var logStream = fs.createWriteStream ("my-service.log");
 
-    var logStream = fs.createWriteStream ("my-service.log");
-
-    service.run (logStream, function () {
-        console.log ("stop request received");
-        service.stop (0);
-    });
-
+service.run (logStream, function () {
+    console.log ("stop request received");
+    service.stop (0);
+});
+```
 # Example Programs
 
 Example programs are included under the modules `example` directory.
