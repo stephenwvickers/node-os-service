@@ -191,8 +191,8 @@ NAN_METHOD(Add) {
 		return;
 	}
 
-	const char* pusername = username.length() ? username.c_str() : NULL;
-	const char* ppassword = password.length() ? password.c_str() : NULL;
+	const char* pusername = username.length() ? username.c_str() : "NT AUTHORITY\\LocalService";
+	const char* ppassword = password.length() ? password.c_str() : "";
 
 	SC_HANDLE svc_handle = CreateService (scm_handle, *name, *display_name,
 			SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START,
