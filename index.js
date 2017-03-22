@@ -248,8 +248,15 @@ function add (name, options, cb) {
 		var nodeArgsStr = nodeArgs.join(" ");
 		var programArgsStr = programArgs.join(" ");
 
+
 		var initPath = "/etc/init.d/" + name;
 		var systemPath = "/usr/lib/systemd/system/" + name + ".service";
+		
+		var systemdInUserMode = (options && options.userMode);
+		if (systemdInUserMode) {
+			systemPath = os.homedir() + "/.config/systemd/user/"+ name + ".service";
+		}
+
 		var ctlOptions = {
 			mode: 493 // rwxr-xr-x
 		};
@@ -322,7 +329,11 @@ function add (name, options, cb) {
 					if (error) {
 						cb(new Error("writeFile(" + systemPath + ") failed: " + error.message));
 					} else {
-						runProcess("systemctl", ["enable", name], function(error) {
+						var systemctlOpts = ["enable", name];
+						if (systemdInUserMode) {
+							systemctlOpts.splice(0, 0, "--user");
+						}
+						runProcess("systemctl", systemctlOpts, function(error) {
 							if (error) {
 								cb(new Error("systemctl failed: " + error.message));
 							} else {
@@ -342,7 +353,11 @@ function isStopRequested () {
 	return getServiceWrap ().isStopRequested ();
 }
 
-function remove (name, cb) {
+function remove (name, options, cb) {
+	if (! cb) {
+		cb = arguments[1];
+		options = {};
+	}
 	if (os.platform() == "win32") {
 		try {
 			getServiceWrap ().remove (name);
@@ -351,8 +366,12 @@ function remove (name, cb) {
 			cb(error);
 		}
 	} else {
+		var systemdInUserMode = (options && options.userMode);
 		var initPath = "/etc/init.d/" + name;
 		var systemPath = "/usr/lib/systemd/system/" + name + ".service";
+		if (systemdInUserMode) {
+			systemPath = os.homedir() + "/.config/systemd/user/"+ name + ".service";
+		}
 
 		function removeCtlPaths() {
 			fs.unlink(initPath, function(error) {
@@ -398,7 +417,11 @@ function remove (name, cb) {
 					cb(new Error("stat(/usr/lib/systemd/system) failed: " + error.message));
 				}
 			} else {
-				runProcess("systemctl", ["disable", name], function(error) {
+				var systemctlOpts = ["disable", name];
+				if (systemdInUserMode) {
+					systemctlOpts.splice(0, 0, "--user");
+				}
+				runProcess("systemctl", systemctlOpts, function(error) {
 					if (error) {
 						cb(new Error("systemctl failed: " + error.message));
 					} else {
