@@ -250,18 +250,20 @@ function add (name, options, cb) {
 
 
 		var initPath = "/etc/init.d/" + name;
-		var systemPath = "/usr/lib/systemd/system/" + name + ".service";
+		var systemdFolder = "/etc/systemd/system";
 		
 		var systemdInUserMode = (options && options.userMode);
 		if (systemdInUserMode) {
-			systemPath = os.homedir() + "/.config/systemd/user/"+ name + ".service";
+			systemdFolder = os.homedir() + "/.config/systemd/user";
 		}
+
+		var systemPath = systemdFolder + "/" + name + ".service";
 
 		var ctlOptions = {
 			mode: 493 // rwxr-xr-x
 		};
 
-		fs.stat("/usr/lib/systemd/system1", function(error, stats) {
+		fs.stat(systemdFolder, function(error, stats) {
 			if (error) {
 				if (error.code == "ENOENT") {
 					var startStopScript = [];
@@ -366,12 +368,14 @@ function remove (name, options, cb) {
 			cb(error);
 		}
 	} else {
-		var systemdInUserMode = (options && options.userMode);
 		var initPath = "/etc/init.d/" + name;
-		var systemPath = "/usr/lib/systemd/system/" + name + ".service";
+
+		var systemdFolder = "/etc/systemd/system";
+		var systemdInUserMode = (options && options.userMode);
 		if (systemdInUserMode) {
-			systemPath = os.homedir() + "/.config/systemd/user/"+ name + ".service";
+			systemdFolder = os.homedir() + "/.config/systemd/user";
 		}
+		var systemPath = systemdFolder + "/" + name + ".service";
 
 		function removeCtlPaths() {
 			fs.unlink(initPath, function(error) {
@@ -393,7 +397,7 @@ function remove (name, options, cb) {
 			});
 		};
 
-		fs.stat("/usr/lib/systemd/system1", function(error, stats) {
+		fs.stat(systemdFolder, function(error, stats) {
 			if (error) {
 				if (error.code == "ENOENT") {
 					runProcess("chkconfig", ["--del", name], function(error) {
