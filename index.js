@@ -4,8 +4,18 @@ var fs = require("fs");
 var os = require("os");
 var util = require ("util");
 
+var systemdFolder = "/etc/systemd/system";
+var systemdUserFolder = os.homedir() + "/.config/systemd/user";
+var initdFolder = "/etc/init.d";
+
 var serviceWrap;
 var runInitialised = false;
+var InstallTypes = Object.freeze({
+	"WINDOWS": "WINDOWS", 
+	"SYSTEMD_USER": "SYSTEMD_USER", 
+	"SYSTEMD_SYSTEM": "SYSTEMD_SYSTEM",
+	"INITD": "INITD"
+});
 
 var linuxStartStopScript = [
 	'#!/bin/bash',
@@ -151,13 +161,50 @@ var linuxSystemUnit = [
 	'UMask=0007',
 	'ExecStart=##NODE_PATH## ##NODE_ARGS## ##PROGRAM_PATH## ##PROGRAM_ARGS##',
 	'',
-	'[Install]'
+	'[Install]',
+	'WantedBy=##TARGET##'
 ];
 
 function getServiceWrap () {
 	if (! serviceWrap)
 		serviceWrap = require ("./build/Release/service");
 	return serviceWrap;
+}
+
+function getInstallationType(name, cb) {
+	if (os.platform() == "win32") {
+		cb(null, InstallTypes.WINDOWS);
+	} else {
+		var userPath = systemdUserFolder;
+		if (name) {
+			userPath = userPath + "/" + name + ".service";
+		}
+		fs.stat(userPath, function (error, stats) {
+			if (error) {
+				if (error.code == "ENOENT") {
+					var systemPath = systemdFolder;
+					if (name) {
+						systemPath = systemPath + "/" + name + ".service";
+					}
+					fs.stat(systemPath, function (error, stats) {
+						if (error) {
+							if (error.code == "ENOENT") {
+								cb(null, InstallTypes.INITD);
+							} else {
+								cb(error);
+							}
+						} else {
+							cb(null, InstallTypes.SYSTEMD_SYSTEM);
+						}
+					});
+				} else {
+					cb(error);
+				}
+			} else {
+				cb(null, InstallTypes.SYSTEMD_USER);
+			}
+		});
+	}
 }
 
 function runProcess(path, args, cb) {
@@ -199,64 +246,117 @@ function add (name, options, cb) {
 	var username = options ? (options.username || null) : null;
 	var password = options ? (options.password || null) : null;
 
-	if (os.platform() == "win32") {
-		var displayName = (options && options.displayName)
-				? options.displayName
-				: name;
-		
-		var serviceArgs = [];
+	var nodeArgs = [];
+	if (options && options.nodeArgs)
+		for (var i = 0; i < options.nodeArgs.length; i++)
+			nodeArgs.push ("\"" + options.nodeArgs[i] + "\"");
 
-		serviceArgs.push (nodePath);
+	var programArgs = [];
+	if (options && options.programArgs)
+		for (var i = 0; i < options.programArgs.length; i++)
+			programArgs.push ("\"" + options.programArgs[i] + "\"");
 
-		if (options && options.nodeArgs)
-			for (var i = 0; i < options.nodeArgs.length; i++)
-				serviceArgs.push (options.nodeArgs[i]);
+	var nodeArgsStr = nodeArgs.join(" ");
+	var programArgsStr = programArgs.join(" ");
 
-		serviceArgs.push (programPath);
-	
-		if (options && options.programArgs)
-			for (var i = 0; i < options.programArgs.length; i++)
-				serviceArgs.push (options.programArgs[i]);
-	
-		for (var i = 0; i < serviceArgs.length; i++)
-			serviceArgs[i] = "\"" + serviceArgs[i] + "\"";
-	
-		var servicePath = serviceArgs.join (" ");
+	var ctlOptions = {
+		mode: 493 // rwxr-xr-x
+	};
 
-		try {
-			getServiceWrap ().add (name, displayName, servicePath, username,
-					password);
-			cb();
-		} catch (error) {
+	getInstallationType(null, function (error, type) {
+		if (error) {
 			cb(error);
-		}
-	} else {
-		var nodeArgs = [];
-		if (options && options.nodeArgs)
-			for (var i = 0; i < options.nodeArgs.length; i++)
-				nodeArgs.push ("\"" + options.nodeArgs[i] + "\"");
-
-		var programArgs = [];
-		if (options && options.programArgs)
-			for (var i = 0; i < options.programArgs.length; i++)
-				programArgs.push ("\"" + options.programArgs[i] + "\"");
+		} else {
+			switch (type) {
+				case InstallTypes.WINDOWS: {
+					var displayName = (options && options.displayName) ? options.displayName : name;
 		
-		var runLevels = [2, 3, 4, 5];
-		if (options && options.runLevels)
-			runLevels = options.runLevels;
+					var serviceArgs = [];
 
-		var nodeArgsStr = nodeArgs.join(" ");
-		var programArgsStr = programArgs.join(" ");
+					serviceArgs.push (nodePath);
 
-		var initPath = "/etc/init.d/" + name;
-		var systemPath = "/usr/lib/systemd/system/" + name + ".service";
-		var ctlOptions = {
-			mode: 493 // rwxr-xr-x
-		};
+					if (options && options.nodeArgs)
+						for (var i = 0; i < options.nodeArgs.length; i++)
+							serviceArgs.push (options.nodeArgs[i]);
 
-		fs.stat("/usr/lib/systemd/system1", function(error, stats) {
-			if (error) {
-				if (error.code == "ENOENT") {
+					serviceArgs.push (programPath);
+				
+					if (options && options.programArgs)
+						for (var i = 0; i < options.programArgs.length; i++)
+							serviceArgs.push (options.programArgs[i]);
+				
+					for (var i = 0; i < serviceArgs.length; i++)
+						serviceArgs[i] = "\"" + serviceArgs[i] + "\"";
+				
+					var servicePath = serviceArgs.join (" ");
+
+					try {
+						getServiceWrap ().add (name, displayName, servicePath, username,
+								password);
+						cb();
+					} catch (error) {
+						cb(error);
+					}
+					break;
+				}
+				case InstallTypes.SYSTEMD_USER:
+				case InstallTypes.SYSTEMD_SYSTEM: {
+					var systemdInstallPath;
+					if (options && options.userMode) {
+						systemdInstallPath = systemdUserFolder + "/" + name + ".service";
+						if (type != InstallTypes.SYSTEMD_USER) {
+							cb(new Error("User mode enabled, but "+systemdUserFolder+" doesn't exist"));
+							break;
+						}
+					} else {
+						systemdInstallPath = systemdFolder + "/" + name + ".service";
+					}
+
+					var systemdTarget = "multi-user.target";
+					if (options && options.systemdTarget)
+						systemdTarget = options.systemdTarget;
+
+					var systemUnit = [];
+
+					for (var i = 0; i < linuxSystemUnit.length; i++) {
+						var line = linuxSystemUnit[i];
+						
+						line = line.replace("##NAME##", name);
+						line = line.replace("##NODE_PATH##", nodePath);
+						line = line.replace("##NODE_ARGS##", nodeArgsStr);
+						line = line.replace("##PROGRAM_PATH##", programPath);
+						line = line.replace("##PROGRAM_ARGS##", programArgsStr);
+						line = line.replace("##TARGET##", systemdTarget);
+						
+						systemUnit.push(line);
+					}
+					var systemUnitStr = systemUnit.join("\n");
+
+					fs.writeFile(systemdInstallPath, systemUnitStr, ctlOptions, function(error) {
+						if (error) {
+							cb(new Error("writeFile(" + systemdInstallPath + ") failed: " + error.message));
+						} else {
+							var systemctlOpts = ["enable", name];
+							if (options && options.userMode) {
+								systemctlOpts.splice(0, 0, "--user");
+							}
+							runProcess("systemctl", systemctlOpts, function(error) {
+								if (error) {
+									cb(new Error("systemctl failed: " + error.message));
+								} else {
+									cb()
+								}
+							})
+						}
+					})
+					break;
+				}
+				case InstallTypes.INITD: {
+					var runLevels = [2, 3, 4, 5];
+					if (options && options.runLevels)
+						runLevels = options.runLevels;
+					var initPath = initdFolder + "/" + name;
+
 					var startStopScript = [];
 
 					for (var i = 0; i < linuxStartStopScript.length; i++) {
@@ -297,44 +397,15 @@ function add (name, options, cb) {
 								}
 							})
 						}
-					})
-				} else {
-					cb(new Error("stat(/usr/lib/systemd/system) failed: " + error.message));
+					});
+					break;
 				}
-			} else {
-				var systemUnit = [];
-
-				for (var i = 0; i < linuxSystemUnit.length; i++) {
-					var line = linuxSystemUnit[i];
-					
-					line = line.replace("##NAME##", name);
-					line = line.replace("##NODE_PATH##", nodePath);
-					line = line.replace("##NODE_ARGS##", nodeArgsStr);
-					line = line.replace("##PROGRAM_PATH##", programPath);
-					line = line.replace("##PROGRAM_ARGS##", programArgsStr);
-					
-					systemUnit.push(line);
+				default: {
+					cb(new Error("Unknown installation type: "+ type));
 				}
-				
-				var systemUnitStr = systemUnit.join("\n");
-
-				fs.writeFile(systemPath, systemUnitStr, ctlOptions, function(error) {
-					if (error) {
-						cb(new Error("writeFile(" + systemPath + ") failed: " + error.message));
-					} else {
-						runProcess("systemctl", ["enable", name], function(error) {
-							if (error) {
-								cb(new Error("systemctl failed: " + error.message));
-							} else {
-								cb()
-							}
-						})
-					}
-				})
 			}
-		})
-	}
-	
+		}
+	});
 	return this;
 }
 
@@ -343,40 +414,39 @@ function isStopRequested () {
 }
 
 function remove (name, cb) {
-	if (os.platform() == "win32") {
-		try {
-			getServiceWrap ().remove (name);
-			cb();
-		} catch (error) {
+	getInstallationType(name, function (error, type) {
+		if (error) {
 			cb(error);
-		}
-	} else {
-		var initPath = "/etc/init.d/" + name;
-		var systemPath = "/usr/lib/systemd/system/" + name + ".service";
+		} else {
+			var systemctlOptions = ["disable", name];
+			var systemdInstallPath = systemdFolder + "/" + name + ".service";
 
-		function removeCtlPaths() {
-			fs.unlink(initPath, function(error) {
-				if (error) {
-					if (error.code == "ENOENT") {
-						fs.unlink(systemPath, function(error) {
-							if (error) {
-								cb(new Error("unlink(" + systemPath + ") failed: " + error.message))
-							} else {
-								cb()
-							}
-						});
-					} else {
-						cb(new Error("unlink(" + initPath + ") failed: " + error.message))
+			switch (type) {
+				case InstallTypes.WINDOWS: {
+					try {
+						getServiceWrap().remove (name);
+						cb();
+					} catch (error) {
+						cb(error);
 					}
-				} else {
-					cb()
+					break;
 				}
-			});
-		};
-
-		fs.stat("/usr/lib/systemd/system1", function(error, stats) {
-			if (error) {
-				if (error.code == "ENOENT") {
+				case InstallTypes.SYSTEMD_USER: {
+					systemctlOptions.splice(0, 0, "--user");
+					systemdInstallPath = systemdUserFolder + "/" + name + ".service";
+				}
+				case InstallTypes.SYSTEMD_SYSTEM: {
+					runProcess("systemctl", systemctlOptions, function(error) {
+						if (error) {
+							cb(new Error("systemctl failed: " + error.message));
+						} else {
+							fs.unlink(systemdInstallPath, cb);
+						}
+					});
+					break;
+				}
+				case InstallTypes.INITD: {
+					var initPath = initdFolder+ "/" + name;
 					runProcess("chkconfig", ["--del", name], function(error) {
 						if (error) {
 							if (error.code == "ENOENT") {
@@ -384,30 +454,25 @@ function remove (name, cb) {
 									if (error) {
 										cb(new Error("update-rc.d failed: " + error.message));
 									} else {
-										removeCtlPaths()
+										fs.unlink(initPath, cb);
 									}
 								});
 							} else {
 								cb(new Error("chkconfig failed: " + error.message));
 							}
 						} else {
-							removeCtlPaths()
+							fs.unlink(initPath, cb);
 						}
-					})
-				} else {
-					cb(new Error("stat(/usr/lib/systemd/system) failed: " + error.message));
+					});
+					break;
 				}
-			} else {
-				runProcess("systemctl", ["disable", name], function(error) {
-					if (error) {
-						cb(new Error("systemctl failed: " + error.message));
-					} else {
-						removeCtlPaths()
-					}
-				})
+				default: {
+					cb(new Error("Unknown install type "+type));
+				}
 			}
-		})
-	}
+		}
+	});
+	return this;
 }
 
 function run (stdoutLogStream, stderrLogStream, stopCallback) {
@@ -447,6 +512,7 @@ function run (stdoutLogStream, stderrLogStream, stopCallback) {
 	if (os.platform() == "win32") {
 		getServiceWrap ().run ();
 	}
+	return this;
 }
 
 function stop (rcode) {
@@ -456,7 +522,45 @@ function stop (rcode) {
 	process.exit (rcode || 0);
 }
 
+function restart(name, cb) {
+	getInstallationType(name, function (error, type) {
+		if (error) {
+			cb(error);
+		} else {
+			switch (type) {
+				case InstallTypes.WINDOWS: {
+					runProcess("net", ["stop", name], function (error) {
+						if (error) {
+							cb(error);
+						} else {
+							runProcess("net", ["start", name], cb);
+						}
+					});
+					break;
+				}
+				case InstallTypes.SYSTEMD_USER: {
+					runProcess("systemctl", ["--user", "restart", name], cb);
+					break;
+				}
+				case InstallTypes.SYSTEMD_SYSTEM: {
+					runProcess("systemctl", ["restart", name], cb);
+					break;
+				}
+				case InstallTypes.INITD: {
+					runProcess("bash", [initdFolder+"/"+name, "restart"], cb);
+					break;
+				}
+				default: {
+					cb(new Error("Unknown install type: "+ type));
+				}
+			}
+		}
+	});
+	return this;
+}
+
 exports.add = add;
 exports.remove = remove;
 exports.run = run;
 exports.stop = stop;
+exports.restart = restart;
