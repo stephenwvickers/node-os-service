@@ -206,7 +206,7 @@ NAN_METHOD(Add) {
 		return;
 	}
 
-  static const DWORD delay = 1000 * 60;
+	static const DWORD delay = 1000 * 60;
 	SC_ACTION actions[] = {{SC_ACTION_RESTART, delay}, {SC_ACTION_RESTART, delay}, {SC_ACTION_RESTART, delay}};
 	SERVICE_FAILURE_ACTIONS failure_actions;
 	failure_actions.dwResetPeriod = 60 * 60 * 24; // 1 day
