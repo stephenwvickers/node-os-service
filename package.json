@@ -9,11 +9,11 @@
   "dependencies": {
     "nan": "2.3.x"
   },
-  "contributors": [ 
+  "contributors": [
     {
       "name": "Stephen Vickers",
       "email": "stephen.vickers.sv@gmail.com"
-    } 
+    }
   ],
   "repository": {
     "type": "git",
@@ -26,9 +26,9 @@
     "linux-daemon",
     "linux-service",
     "service",
-  	 "windows",
-  	 "windows-daemon",
-  	 "windows-service"
+    "windows",
+    "windows-daemon",
+    "windows-service"
   ],
   "author": "Stephen Vickers <stephen.vickers.sv@gmail.com>",
   "license": "MIT"

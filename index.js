@@ -17,11 +17,11 @@ var linuxStartStopScript = [
 	'# Default-Start:     ##RUN_LEVELS_ARR##',
 	'# Default-Stop:      0 1 6',
 	'# Short-Description: Start ##NAME## at boot time',
-	'# Description:       Enable ##NAME## service.',
+	'# Description:       ##DESCRIPTION##',
 	'### END INIT INFO',
 	'',
 	'# chkconfig:   ##RUN_LEVELS_STR## 99 1',
-	'# description: ##NAME##',
+	'# description: ##DESCRIPTION##',
 	'',
 	'umask 0007',
 	'',
@@ -143,7 +143,7 @@ var linuxStartStopScript = [
 
 var linuxSystemUnit = [
 	'[Unit]',
-	'Description=##NAME##',
+	'Description=##DESCRIPTION##',
 	'After=network.target',
 	'Requires=##DEPENDENCIES##',
 	'',
@@ -203,10 +203,14 @@ function add (name, options, cb) {
 	var username = options ? (options.username || null) : null;
 	var password = options ? (options.password || null) : null;
 
+
 	if (os.platform() == "win32") {
 		var displayName = (options && options.displayName)
 				? options.displayName
 				: name;
+		var description = (options && options.description)
+				? options.description
+				: "Enable " + displayName + " service.";
 		
 		var serviceArgs = [];
 
@@ -233,12 +237,15 @@ function add (name, options, cb) {
 
 		try {
 			getServiceWrap ().add (name, displayName, servicePath, username,
-					password, deps);
+					password, deps, description);
 			cb();
 		} catch (error) {
 			cb(error);
 		}
 	} else {
+		var description = (options && options.description)
+				? options.description
+				: "Enable " + name + " service.";
 		var nodeArgs = [];
 		if (options && options.nodeArgs)
 			for (var i = 0; i < options.nodeArgs.length; i++)
@@ -275,6 +282,7 @@ function add (name, options, cb) {
 						var line = linuxStartStopScript[i];
 						
 						line = line.replace("##NAME##", name);
+						line = line.replace("##DESCRIPTION##", description);
 						line = line.replace("##NODE_PATH##", nodePath);
 						line = line.replace("##NODE_ARGS##", nodeArgsStr);
 						line = line.replace("##PROGRAM_PATH##", programPath);
@@ -325,6 +333,7 @@ function add (name, options, cb) {
 					var line = linuxSystemUnit[i];
 					
 					line = line.replace("##NAME##", name);
+					line = line.replace("##DESCRIPTION##", description);
 					line = line.replace("##NODE_PATH##", nodePath);
 					line = line.replace("##NODE_ARGS##", nodeArgsStr);
 					line = line.replace("##PROGRAM_PATH##", programPath);

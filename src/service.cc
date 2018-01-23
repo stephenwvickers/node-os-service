@@ -215,6 +215,26 @@ NAN_METHOD(Add) {
 		return;
 	}
 
+	char* description = NULL;
+	if (info.Length() > 6) {
+		if (info[6]->IsString ()) {
+			Nan::Utf8String tmp_description(info[6]);
+			description = *tmp_description;
+		}
+	}
+	SERVICE_DESCRIPTION description_struct;
+	description_struct.lpDescription = description;
+
+	if (! ChangeServiceConfig2 (svc_handle, SERVICE_CONFIG_DESCRIPTION,
+			&description_struct)) {
+		std::string message ("ChangeServiceConfig2() failed: ");
+		message += raw_strerror (GetLastError ());
+		CloseServiceHandle (scm_handle);
+		Nan::ThrowError(message.c_str());
+		return;
+	}
+
+
 	CloseServiceHandle (svc_handle);
 	CloseServiceHandle (scm_handle);
 

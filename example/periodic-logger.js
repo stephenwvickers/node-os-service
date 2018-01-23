@@ -8,7 +8,7 @@ var fs = require ("fs");
 var service = require ("../");
 
 function usage () {
-	console.log ("usage: node periodic-logger --add <name> [username] [password] [dep dep ...]");
+	console.log ("usage: node periodic-logger --add <name> [description] [username] [password] [dep dep ...]");
 	console.log ("       node periodic-logger --remove <name>");
 	console.log ("       node periodic-logger --run");
 	process.exit (-1);
@@ -20,13 +20,16 @@ if (process.argv[2] == "--add" && process.argv.length >= 4) {
 	};
 
 	if (process.argv.length > 4)
-		options.username = process.argv[4];
+		options.description = process.argv[4];
 
 	if (process.argv.length > 5)
-		options.password = process.argv[5];
-		
+		options.username = process.argv[5];
+
 	if (process.argv.length > 6)
-		options.dependencies = process.argv.splice(6);
+		options.password = process.argv[6];
+		
+	if (process.argv.length > 7)
+		options.dependencies = process.argv.splice(7);
 
 	service.add (process.argv[3], options, function(error) {
 		if (error)
