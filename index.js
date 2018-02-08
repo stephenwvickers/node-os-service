@@ -437,8 +437,18 @@ function run (stdoutLogStream, stderrLogStream, stopCallback) {
 	}
 
 	if (! runInitialised) {
-		process.stdout.write = stdoutLogStream.write.bind(stdoutLogStream);
-		process.stderr.write = stderrLogStream.write.bind(stderrLogStream);
+		
+		Object.defineProperty(process, 'stdout', {
+			configurable: true,
+			enumerable: true,
+			get: () => stdoutLogStream
+		});
+
+		Object.defineProperty(process, 'stderr', {
+			configurable: true,
+			enumerable: true,
+			get: () => stderrLogStream
+		});
 		
 		if (os.platform() == "win32") {
 			setInterval (function () {
