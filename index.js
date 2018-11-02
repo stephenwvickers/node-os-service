@@ -261,12 +261,12 @@ function add (name, options, cb) {
 				: ""
 
 		var initPath = "/etc/init.d/" + name;
-		var systemPath = "/usr/lib/systemd/system/" + name + ".service";
+		var systemPath = "/etc/systemd/system/" + name + ".service";
 		var ctlOptions = {
 			mode: 493 // rwxr-xr-x
 		};
 				
-		fs.stat("/usr/lib/systemd/system", function(error, stats) {
+		fs.stat("/etc/systemd/system", function(error, stats) {
 			if (error) {
 				if (error.code == "ENOENT") {
 					var startStopScript = [];
@@ -312,7 +312,7 @@ function add (name, options, cb) {
 						}
 					})
 				} else {
-					cb(new Error("stat(/usr/lib/systemd/system) failed: " + error.message));
+					cb(new Error("stat(/etc/systemd/system) failed: " + error.message));
 				}
 			} else {
 				var systemUnit = [];
@@ -371,7 +371,7 @@ function remove (name, cb) {
 		}
 	} else {
 		var initPath = "/etc/init.d/" + name;
-		var systemDir = "/usr/lib/systemd/system"
+		var systemDir = "/etc/systemd/system"
 		var systemPath = systemDir + "/" + name + ".service";
 
 		function removeCtlPaths() {
