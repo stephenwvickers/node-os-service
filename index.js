@@ -189,6 +189,21 @@ function findSystemdFilepath(dirsToCheck, name, callback) {
 	});
 }
 
+function findInstallFilepath(pathsToCheck, callback) {
+	var svcfile = pathsToCheck[0];
+	pathsToCheck = pathsToCheck.splice(1);
+	fs.stat(svcfile, function(error, stats) {
+			if (error) {
+				if (error.code == "ENOENT" && pathsToCheck.length)
+					findInstallFilepath(pathsToCheck, callback);
+				else
+					callback(error, svcfile, stats);
+			}
+			else
+				callback(error, svcfile, stats);
+	});
+}
+
 function runProcess(path, args, cb) {
 	var child = child_process.spawn(path, args);
 
@@ -394,23 +409,21 @@ function remove (name, cb) {
 			cb(error);
 		}
 	} else {
-		var systemDFilePaths = [
+		var initPath = "/etc/init.d/" + name;
+		var installFileLocations = [
+			initPath,
 			"/usr/lib/systemd/system" + name + ".service",
 			"/lib/systemd/system/" + name + ".service",
 			"/etc/systemd/system/" + name + ".service"
 		]
-		var initPath = "/etc/init.d/" + name;
 
-		function removeCtlPaths(paths) {
-			fs.unlink(paths[0], function(error) {
+		function removeCtlPath(path) {
+			fs.unlink(path, function(error) {
 				if (error) {
 					if (error.code == "ENOENT") {
-						if (paths.length==1)
-							cb();
-						else
-							removeCtlPaths(paths.splice(1));
+						cb();
 					} else {
-						cb(new Error("unlink(" + paths[0] + ") failed: " + error.message))
+						cb(new Error("unlink(" + path + ") failed: " + error.message))
 					}
 				} else {
 					cb()
@@ -418,35 +431,40 @@ function remove (name, cb) {
 			});
 		};
 
-		findSystemdFilepath(systemdCheckPaths, name, function(error, systemDir, systemPath, stats) {
+		findInstallFilepath(installFileLocations, function(error, systemPath, stats) {
 			if (error) {
 				if (error.code == "ENOENT") {
-					runProcess("chkconfig", ["--del", name], function(error) {
-						if (error) {
-							if (error.code == "ENOENT") {
-								runProcess("update-rc.d", [name, "remove"], function(error) {
-									if (error) {
-										cb(new Error("update-rc.d failed: " + error.message));
-									} else {
-										removeCtlPaths(initPath);
-									}
-								});
-							} else {
-								cb(new Error("chkconfig failed: " + error.message));
-							}
-						} else {
-							removeCtlPaths(initPath);
-						}
-					})
-				} else {
-					cb(new Error("stat(" + systemDir + ") failed: " + error.message));
+					// Not installed anywhere, so successfully uninstalled
+					cb();
 				}
+				else
+					cb(new Error("stat(" + systemPath + ") failed: " + error.message));
+			}
+			else if (systemPath === initPath)
+			{
+				runProcess("chkconfig", ["--del", name], function(error) {
+					if (error) {
+						if (error.code == "ENOENT") {
+							runProcess("update-rc.d", [name, "remove"], function(error) {
+								if (error) {
+									cb(new Error("update-rc.d failed: " + error.message));
+								} else {
+									removeCtlPath(initPath);
+								}
+							});
+						} else {
+							cb(new Error("chkconfig failed: " + error.message));
+						}
+					} else {
+						removeCtlPath(initPath);
+					}
+				})
 			} else {
 				runProcess("systemctl", ["disable", name], function(error) {
 					if (error) {
 						cb(new Error("systemctl failed: " + error.message));
 					} else {
-						removeCtlPaths(systemDPaths);
+						removeCtlPath(systemPath);
 					}
 				})
 			}
