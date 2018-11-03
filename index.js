@@ -410,7 +410,7 @@ function remove (name, cb) {
 						else
 							removeCtlPaths(paths.splice(1));
 					} else {
-						cb(new Error("unlink(" + initPath + ") failed: " + error.message))
+						cb(new Error("unlink(" + paths[0] + ") failed: " + error.message))
 					}
 				} else {
 					cb()
