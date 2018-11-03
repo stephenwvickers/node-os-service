@@ -158,10 +158,35 @@ var linuxSystemUnit = [
 	'WantedBy=##SYSTEMD_WANTED_BY##'
 ];
 
+var systemdCheckPaths =
+[
+	"/usr/lib/systemd/system", /* Fedora Based package installed */
+	"/etc/systemd/system", /* Standard directory for non-package installed .service files */
+	"/lib/systemd/system", /* Debian Based package installed */
+];
+
 function getServiceWrap () {
 	if (! serviceWrap)
 		serviceWrap = require ("./build/Release/service");
 	return serviceWrap;
+}
+
+function findSystemdFilepath(dirsToCheck, name, callback) {
+	var dir = dirsToCheck[0];
+	dirsToCheck = dirsToCheck.splice(1);
+	fs.stat(dir, function(error, stats) {
+			var svcfile = dir + "/" + name + '.service';
+			if (error) {
+				if (error.code == "ENOENT" && dirsToCheck.length)
+					findSystemdFilepath(dirsToCheck, name, callback);
+				else
+				{
+					callback(error, dir, svcfile, stats);
+				}
+			}
+			else
+				callback(error, dir, svcfile, stats);
+	});
 }
 
 function runProcess(path, args, cb) {
@@ -261,12 +286,11 @@ function add (name, options, cb) {
 				: ""
 
 		var initPath = "/etc/init.d/" + name;
-		var systemPath = "/usr/lib/systemd/system/" + name + ".service";
 		var ctlOptions = {
 			mode: 493 // rwxr-xr-x
 		};
 				
-		fs.stat("/usr/lib/systemd/system", function(error, stats) {
+		findSystemdFilepath(systemdCheckPaths, name, function(error, systemDir, systemPath, stats) {
 			if (error) {
 				if (error.code == "ENOENT") {
 					var startStopScript = [];
@@ -312,7 +336,7 @@ function add (name, options, cb) {
 						}
 					})
 				} else {
-					cb(new Error("stat(/usr/lib/systemd/system) failed: " + error.message));
+					cb(new Error("stat(" + systemDir + ") failed: " + error.message));
 				}
 			} else {
 				var systemUnit = [];
@@ -370,21 +394,21 @@ function remove (name, cb) {
 			cb(error);
 		}
 	} else {
+		var systemDFilePaths = [
+			"/usr/lib/systemd/system" + name + ".service",
+			"/lib/systemd/system/" + name + ".service",
+			"/etc/systemd/system/" + name + ".service"
+		]
 		var initPath = "/etc/init.d/" + name;
-		var systemDir = "/usr/lib/systemd/system"
-		var systemPath = systemDir + "/" + name + ".service";
 
-		function removeCtlPaths() {
-			fs.unlink(initPath, function(error) {
+		function removeCtlPaths(paths) {
+			fs.unlink(paths[0], function(error) {
 				if (error) {
 					if (error.code == "ENOENT") {
-						fs.unlink(systemPath, function(error) {
-							if (error) {
-								cb(new Error("unlink(" + systemPath + ") failed: " + error.message))
-							} else {
-								cb()
-							}
-						});
+						if (paths.length==1)
+							cb();
+						else
+							removeCtlPaths(paths.splice(1));
 					} else {
 						cb(new Error("unlink(" + initPath + ") failed: " + error.message))
 					}
@@ -394,7 +418,7 @@ function remove (name, cb) {
 			});
 		};
 
-		fs.stat(systemDir, function(error, stats) {
+		findSystemdFilepath(systemdCheckPaths, name, function(error, systemDir, systemPath, stats) {
 			if (error) {
 				if (error.code == "ENOENT") {
 					runProcess("chkconfig", ["--del", name], function(error) {
@@ -404,14 +428,14 @@ function remove (name, cb) {
 									if (error) {
 										cb(new Error("update-rc.d failed: " + error.message));
 									} else {
-										removeCtlPaths()
+										removeCtlPaths(initPath);
 									}
 								});
 							} else {
 								cb(new Error("chkconfig failed: " + error.message));
 							}
 						} else {
-							removeCtlPaths()
+							removeCtlPaths(initPath);
 						}
 					})
 				} else {
@@ -422,7 +446,7 @@ function remove (name, cb) {
 					if (error) {
 						cb(new Error("systemctl failed: " + error.message));
 					} else {
-						removeCtlPaths()
+						removeCtlPaths(systemDPaths);
 					}
 				})
 			}
