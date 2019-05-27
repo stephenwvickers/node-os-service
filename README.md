@@ -10,7 +10,7 @@ This module is installed using [node package manager (npm)][npm]:
     # during installation on Windows platforms using node-gyp.  A
     # suitable build chain must be configured on Windows platforms
     # before installation.
-    
+
     npm install os-service
 
 It is loaded using the `require()` function:
@@ -20,9 +20,9 @@ It is loaded using the `require()` function:
 A program can then be added, removed and run as a service:
 
     service.add ("my-service");
-    
+
     service.remove ("my-service");
-    
+
     service.run (function () {
         // Stop request received (i.e. a kill signal on Linux or from the
         // Service Control Manager on Windows), so let's stop!
@@ -46,12 +46,12 @@ with a `--add` parameter, and removes the created service when called with a
 `--remove` parameter:
 
     if (process.argv[2] == "--add") {
-        service.add ("my-service", {programArgs: ["--run"]}, function(error){ 
+        service.add ("my-service", {programArgs: ["--run"]}, function(error){
            if (error)
               console.trace(error);
         });
     } else if (process.argv[2] == "--remove") {
-        service.remove ("my-service", function(error){ 
+        service.remove ("my-service", function(error){
            if (error)
               console.trace(error);
         });
@@ -59,7 +59,7 @@ with a `--add` parameter, and removes the created service when called with a
         service.run (function () {
             service.stop (0);
         });
-        
+
         // Run service program code...
     } else {
         // Show usage...
@@ -85,12 +85,12 @@ The following example adds or removes number of services:
 
     if (program.argv[2] == "--add") {
         service.add ("service1", {programPath: "c:\example\svc1.js",
-            function(error) { 
+            function(error) {
                 if (error) {
                     console.trace(error);
                 } else {
                     service.add ("service2", {programPath: "c:\example\svc2.js",
-                        function(error) { 
+                        function(error) {
                             if (error) {
                                 console.trace(error);
                             }
@@ -98,11 +98,11 @@ The following example adds or removes number of services:
                 }
             });
     } else {
-        service.remove ("service2", function(error) { 
+        service.remove ("service2", function(error) {
             if (error) {
                 console.trace(error);
             } else {
-                service.remove ("service1", function(error) { 
+                service.remove ("service1", function(error) {
                     if (error) {
                         console.trace(error);
                     }
@@ -127,7 +127,7 @@ following code:
     service.run (function () {
         service.stop (0);
     });
-    
+
     // Run service program code...
 
 # Running Service Programs
@@ -203,7 +203,7 @@ The `name` parameter specifies the name of the created service.  The optional
    the service will be run using these credentials when started, see the
    `CreateService()` functions [win32 API documentation][createservice] for
    details on the format of the username, on all other platforms this parameter
-   is ignored
+   is ignored. This is also used on Linux with systemd
  * `password` - See the `username` parameter
  * `systemdWantedBy` - For when systemd will be used a target can be specified
    for the `WantedBy` attribute under the `[Install]` section in the generated
@@ -232,7 +232,7 @@ the program:
         username: ".\Stephen Vickers",
         password: "MyPassword :)"
     };
-    
+
     service.add ("my-service", options, function(error) {
         if (error)
             console.trace(error);
@@ -280,7 +280,7 @@ The program should perform cleanup tasks and then call the `service.stop()`
 function.
 
 The following example starts a program as a service:
-    
+
     service.run (function () {
         service.stop ();
     });
@@ -317,7 +317,7 @@ Example programs are included under the modules `example` directory.
 ## Version 1.0.1 - 03/03/2015
 
  * Support Linux platforms which don't have the start-stop-daemon program
- 
+
 ## Version 1.0.2 - 30/03/2015
 
  * Linux start/stop link under `/etc/rcN.d` directories are not removed

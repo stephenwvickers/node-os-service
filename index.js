@@ -152,6 +152,7 @@ var linuxSystemUnit = [
 	'StandardOutput=null',
 	'StandardError=null',
 	'UMask=0007',
+	'User=##USERNAME##',
 	'ExecStart=##NODE_PATH## ##NODE_ARGS## ##PROGRAM_PATH## ##PROGRAM_ARGS##',
 	'',
 	'[Install]',
@@ -200,14 +201,14 @@ function add (name, options, cb) {
 			? options.programPath
 			: process.argv[1];
 
-	var username = options ? (options.username || null) : null;
+	var username = (options ? (options.username || null) : null) || process.env.SUDO_USER || os.userInfo().username;
 	var password = options ? (options.password || null) : null;
 
 	if (os.platform() == "win32") {
 		var displayName = (options && options.displayName)
 				? options.displayName
 				: name;
-		
+
 		var serviceArgs = [];
 
 		serviceArgs.push (nodePath);
@@ -217,14 +218,14 @@ function add (name, options, cb) {
 				serviceArgs.push (options.nodeArgs[i]);
 
 		serviceArgs.push (programPath);
-	
+
 		if (options && options.programArgs)
 			for (var i = 0; i < options.programArgs.length; i++)
 				serviceArgs.push (options.programArgs[i]);
-	
+
 		for (var i = 0; i < serviceArgs.length; i++)
 			serviceArgs[i] = "\"" + serviceArgs[i] + "\"";
-	
+
 		var servicePath = serviceArgs.join (" ");
 
 		deps = options.dependencies
@@ -248,7 +249,7 @@ function add (name, options, cb) {
 		if (options && options.programArgs)
 			for (var i = 0; i < options.programArgs.length; i++)
 				programArgs.push ("\"" + options.programArgs[i] + "\"");
-		
+
 		var runLevels = [2, 3, 4, 5];
 		if (options && options.runLevels)
 			runLevels = options.runLevels;
@@ -265,7 +266,7 @@ function add (name, options, cb) {
 		var ctlOptions = {
 			mode: 493 // rwxr-xr-x
 		};
-				
+
 		fs.stat("/usr/lib/systemd/system", function(error, stats) {
 			if (error) {
 				if (error.code == "ENOENT") {
@@ -273,7 +274,7 @@ function add (name, options, cb) {
 
 					for (var i = 0; i < linuxStartStopScript.length; i++) {
 						var line = linuxStartStopScript[i];
-						
+
 						line = line.replace("##NAME##", name);
 						line = line.replace("##NODE_PATH##", nodePath);
 						line = line.replace("##NODE_ARGS##", nodeArgsStr);
@@ -282,10 +283,10 @@ function add (name, options, cb) {
 						line = line.replace("##RUN_LEVELS_ARR##", runLevels.join(" "));
 						line = line.replace("##RUN_LEVELS_STR##", runLevels.join(""));
 						line = line.replace("##DEPENDENCIES##", deps);
-						
+
 						startStopScript.push(line);
 					}
-					
+
 					var startStopScriptStr = startStopScript.join("\n");
 
 					fs.writeFile(initPath, startStopScriptStr, ctlOptions, function(error) {
@@ -323,7 +324,7 @@ function add (name, options, cb) {
 
 				for (var i = 0; i < linuxSystemUnit.length; i++) {
 					var line = linuxSystemUnit[i];
-					
+
 					line = line.replace("##NAME##", name);
 					line = line.replace("##NODE_PATH##", nodePath);
 					line = line.replace("##NODE_ARGS##", nodeArgsStr);
@@ -331,10 +332,11 @@ function add (name, options, cb) {
 					line = line.replace("##PROGRAM_ARGS##", programArgsStr);
 					line = line.replace("##SYSTEMD_WANTED_BY##", systemdWantedBy);
 					line = line.replace("##DEPENDENCIES##", deps);
-					
+					line = line.replace("##USERNAME##", username);
+
 					systemUnit.push(line);
 				}
-				
+
 				var systemUnitStr = systemUnit.join("\n");
 
 				fs.writeFile(systemPath, systemUnitStr, ctlOptions, function(error) {
@@ -353,7 +355,7 @@ function add (name, options, cb) {
 			}
 		})
 	}
-	
+
 	return this;
 }
 
@@ -447,10 +449,10 @@ function run (stopCallback) {
 				stopCallback ();
 			});
 		}
-		
+
 		runInitialised = true;
 	}
-	
+
 	if (os.platform() == "win32") {
 		getServiceWrap ().run ();
 	}
