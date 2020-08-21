@@ -196,7 +196,7 @@ function add (name, options, cb) {
 			? options.nodePath
 			: process.execPath;
 
-	var programPath = (options && options.programPath)
+	var programPath = (options && options.programPath !== undefined)
 			? options.programPath
 			: process.argv[1];
 
@@ -216,7 +216,8 @@ function add (name, options, cb) {
 			for (var i = 0; i < options.nodeArgs.length; i++)
 				serviceArgs.push (options.nodeArgs[i]);
 
-		serviceArgs.push (programPath);
+    if (programPath)
+		  serviceArgs.push (programPath);
 	
 		if (options && options.programArgs)
 			for (var i = 0; i < options.programArgs.length; i++)
@@ -276,8 +277,9 @@ function add (name, options, cb) {
 						
 						line = line.replace("##NAME##", name);
 						line = line.replace("##NODE_PATH##", nodePath);
-						line = line.replace("##NODE_ARGS##", nodeArgsStr);
-						line = line.replace("##PROGRAM_PATH##", programPath);
+            line = line.replace("##NODE_ARGS##", nodeArgsStr);
+            if (programPath)
+						  line = line.replace("##PROGRAM_PATH##", programPath);
 						line = line.replace("##PROGRAM_ARGS##", programArgsStr);
 						line = line.replace("##RUN_LEVELS_ARR##", runLevels.join(" "));
 						line = line.replace("##RUN_LEVELS_STR##", runLevels.join(""));
@@ -326,8 +328,9 @@ function add (name, options, cb) {
 					
 					line = line.replace("##NAME##", name);
 					line = line.replace("##NODE_PATH##", nodePath);
-					line = line.replace("##NODE_ARGS##", nodeArgsStr);
-					line = line.replace("##PROGRAM_PATH##", programPath);
+          line = line.replace("##NODE_ARGS##", nodeArgsStr);
+          if (programPath)
+					  line = line.replace("##PROGRAM_PATH##", programPath);
 					line = line.replace("##PROGRAM_ARGS##", programArgsStr);
 					line = line.replace("##SYSTEMD_WANTED_BY##", systemdWantedBy);
 					line = line.replace("##DEPENDENCIES##", deps);
